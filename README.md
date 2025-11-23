@@ -78,8 +78,4 @@ shopnow-load-balancer/
 
 ## 👨‍💻 Autor
 
-Desenvolvido para o desafio de Engenharia de Software da ShopNow
-
-## 📝 Licença
-
-MIT
+Ravel Rodrigues Pereira - Desenvolvido para o desafio da cadeira de Sistemas Distribuidos

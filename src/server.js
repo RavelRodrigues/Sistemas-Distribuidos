@@ -23,7 +23,7 @@ app.use((req, res, next) => {
 // Rota principal - Home do e-commerce
 app.get('/', (req, res) => {
   res.json({
-    message: '🛍️ Bem-vindo ao ShopNow!',
+    message: ' Bem-vindo ao ShopNow!',
     server: SERVER_ID,
     timestamp: new Date().toISOString(),
     uptime: Math.floor((Date.now() - stats.startTime) / 1000)
@@ -113,11 +113,11 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════╗
-║     🛍️  ShopNow E-commerce Server     ║
+║       ShopNow E-commerce Server     ║
 ╠════════════════════════════════════════╣
 ║  Server ID: ${SERVER_ID.padEnd(26)}║
 ║  Port: ${PORT.toString().padEnd(30)}║
-║  Status: ONLINE ✅                    ║
+║  Status: ONLINE                     ║
 ╚════════════════════════════════════════╝
   `);
 });

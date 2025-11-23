@@ -8,9 +8,10 @@
     "start:server2": "node src/server.js 3002",
     "start:server3": "node src/server.js 3003",
     "start:cluster": "node src/cluster-manager.js",
-    "test:instances": "node tests/test-instances.js",
-    "start:servers": "npm-run-all --parallel start:server1 start:server2 start:server3",
     "start:balancer": "node src/load-balancer.js",
+    "test:instances": "node tests/test-instances.js",
+    "test:balancer": "node tests/test-load-balancer.js",
+    "start:servers": "npm-run-all --parallel start:server1 start:server2 start:server3",
     "start": "npm-run-all --parallel start:servers start:balancer",
     "test:load": "bash tests/load-test.sh",
     "simulate:failure": "node tests/simulate-failure.js"
