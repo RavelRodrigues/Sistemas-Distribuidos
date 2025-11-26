@@ -1,23 +1,23 @@
 # ShopNow Load Balancer
 
-## 🛍️ Sobre o Projeto
+##  Sobre o Projeto
 
 Sistema de balanceamento de carga para o e-commerce ShopNow, desenvolvido para suportar milhares de acessos simultâneos durante eventos como Black Friday.
 
-## 🎯 Objetivos
+##  Objetivos
 
-- ✅ Criar múltiplas instâncias do servidor web
-- ✅ Implementar balanceador de carga
-- ✅ Suportar múltiplos algoritmos de balanceamento
-- ✅ Simular falhas e recuperação de servidores
-- ✅ Testes de carga com Apache Benchmark
+-  Criar múltiplas instâncias do servidor web
+-  Implementar balanceador de carga
+-  Suportar múltiplos algoritmos de balanceamento
+-  Simular falhas e recuperação de servidores
+-  Testes de carga com Apache Benchmark
 
-## 🏗️ Arquitetura
+##  Arquitetura
 ```
 Cliente → Load Balancer → [Servidor 1, Servidor 2, Servidor 3]
 ```
 
-## 🚀 Como Executar
+##  Como Executar
 
 ### Pré-requisitos
 - Node.js 14+
@@ -38,12 +38,12 @@ npm run start:balancer
 npm run test:load
 ```
 
-## 📊 Algoritmos Implementados
+##  Algoritmos Implementados
 
 1. **Round Robin**: Distribui requisições sequencialmente
 2. **Least Connections**: Direciona para servidor com menos conexões ativas
 
-## 🧪 Testes
+##  Testes
 ```bash
 # Teste básico
 curl http://localhost:8000
@@ -55,14 +55,14 @@ ab -n 10000 -c 100 http://localhost:8000/
 npm run simulate:failure
 ```
 
-## 📈 Métricas Monitoradas
+##  Métricas Monitoradas
 
 - Requisições por servidor
 - Conexões ativas
 - Taxa de sucesso/falha
 - Tempo de resposta
 
-## 🔧 Estrutura do Projeto
+##  Estrutura do Projeto
 ```
 shopnow-load-balancer/
 ├── src/
@@ -76,6 +76,6 @@ shopnow-load-balancer/
 └── README.md
 ```
 
-## 👨‍💻 Autor
+##  Autor
 
 Ravel Rodrigues Pereira - Desenvolvido para o desafio da cadeira de Sistemas Distribuidos

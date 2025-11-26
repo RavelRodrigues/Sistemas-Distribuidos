@@ -1,9 +1,13 @@
 const http = require('http');
 const RoundRobin = require('./algorithms/round-robin');
+const LeastConnections = require('./algorithms/least-connections');
 
 // Configuração do Load Balancer
 const LOAD_BALANCER_PORT = 8000;
-const HEALTH_CHECK_INTERVAL = 5000; // 5 segundos
+const HEALTH_CHECK_INTERVAL = 3000; // 3 segundos
+
+// Escolher algoritmo via variável de ambiente ou padrão
+const ALGORITHM = process.env.ALGORITHM || 'round-robin'; // 'round-robin' ou 'least-connections'
 
 // Lista de servidores backend
 const BACKEND_SERVERS = [
@@ -25,8 +29,15 @@ const stats = {
   startTime: Date.now()
 };
 
-// Inicializar algoritmo Round Robin
-const roundRobin = new RoundRobin(BACKEND_SERVERS.filter(s => s.healthy));
+// Inicializar algoritmo baseado na configuração
+let algorithm;
+if (ALGORITHM === 'least-connections') {
+  algorithm = new LeastConnections(BACKEND_SERVERS.filter(s => s.healthy));
+  console.log(' Usando algoritmo: Least Connections');
+} else {
+  algorithm = new RoundRobin(BACKEND_SERVERS.filter(s => s.healthy));
+  console.log(' Usando algoritmo: Round Robin');
+}
 
 // Cores para logs
 const colors = {
@@ -35,6 +46,7 @@ const colors = {
   yellow: '\x1b[33m',
   red: '\x1b[31m',
   magenta: '\x1b[35m',
+  blue: '\x1b[34m',
   reset: '\x1b[0m'
 };
 
@@ -79,18 +91,20 @@ async function monitorServersHealth() {
     // Log se o status mudou
     if (wasHealthy !== server.healthy) {
       if (server.healthy) {
-        console.log(`${colors.green}[HEALTH CHECK] ${server.name} voltou a ficar saudável ✅${colors.reset}`);
+        console.log(`${colors.green}[HEALTH CHECK]  ${server.name} voltou a ficar saudável!${colors.reset}`);
       } else {
-        console.log(`${colors.red}[HEALTH CHECK] ${server.name} está fora do ar ❌${colors.reset}`);
+        console.log(`${colors.red}[HEALTH CHECK]  ${server.name} está fora do ar!${colors.reset}`);
       }
     }
   }
 
   // Atualizar lista de servidores saudáveis no algoritmo
   const healthyServers = BACKEND_SERVERS.filter(s => s.healthy);
-  roundRobin.updateServers(healthyServers);
+  algorithm.updateServers(healthyServers);
 
-  console.log(`${colors.cyan}[HEALTH CHECK] Servidores saudáveis: ${healthyServers.length}/${BACKEND_SERVERS.length}${colors.reset}`);
+  const healthyCount = healthyServers.length;
+  const totalCount = BACKEND_SERVERS.length;
+  console.log(`${colors.cyan}[HEALTH CHECK] Servidores saudáveis: ${healthyCount}/${totalCount}${colors.reset}`);
 }
 
 /**
@@ -108,7 +122,12 @@ function proxyRequest(clientReq, clientRes, targetServer) {
     timeout: 10000
   };
 
-  console.log(`${colors.magenta}[PROXY]${colors.reset} ${clientReq.method} ${clientReq.url} → ${targetServer.name}`);
+  console.log(`${colors.magenta}[PROXY]${colors.reset} ${clientReq.method} ${clientReq.url} → ${colors.blue}${targetServer.name}${colors.reset}`);
+
+  // Incrementar conexões ativas (apenas para Least Connections)
+  if (ALGORITHM === 'least-connections') {
+    algorithm.incrementConnections(targetServer.name);
+  }
 
   const proxyReq = http.request(options, (proxyRes) => {
     // Copiar status code e headers
@@ -120,6 +139,12 @@ function proxyRequest(clientReq, clientRes, targetServer) {
     proxyRes.on('end', () => {
       stats.successfulRequests++;
       stats.requestsByServer[targetServer.name]++;
+      
+      // Decrementar conexões ativas
+      if (ALGORITHM === 'least-connections') {
+        algorithm.decrementConnections(targetServer.name);
+      }
+      
       console.log(`${colors.green}[SUCCESS]${colors.reset} ${clientReq.method} ${clientReq.url} - ${proxyRes.statusCode}`);
     });
   });
@@ -127,13 +152,19 @@ function proxyRequest(clientReq, clientRes, targetServer) {
   // Tratamento de erros
   proxyReq.on('error', (err) => {
     stats.failedRequests++;
+    
+    // Decrementar conexões ativas em caso de erro
+    if (ALGORITHM === 'least-connections') {
+      algorithm.decrementConnections(targetServer.name);
+    }
+    
     console.error(`${colors.red}[ERROR]${colors.reset} Falha ao conectar em ${targetServer.name}:`, err.message);
     
     // Marcar servidor como não saudável
     targetServer.healthy = false;
     
     // Tentar outro servidor
-    const nextServer = roundRobin.getNextServer();
+    const nextServer = algorithm.getNextServer();
     if (nextServer && nextServer !== targetServer) {
       console.log(`${colors.yellow}[RETRY]${colors.reset} Tentando ${nextServer.name}...`);
       proxyRequest(clientReq, clientRes, nextServer);
@@ -149,6 +180,12 @@ function proxyRequest(clientReq, clientRes, targetServer) {
   proxyReq.on('timeout', () => {
     proxyReq.destroy();
     stats.failedRequests++;
+    
+    // Decrementar conexões ativas em caso de timeout
+    if (ALGORITHM === 'least-connections') {
+      algorithm.decrementConnections(targetServer.name);
+    }
+    
     console.error(`${colors.red}[TIMEOUT]${colors.reset} Timeout ao conectar em ${targetServer.name}`);
     
     clientRes.writeHead(504, { 'Content-Type': 'application/json' });
@@ -174,7 +211,7 @@ const loadBalancer = http.createServer((req, res) => {
     res.end(JSON.stringify({
       ...stats,
       uptime: Math.floor((Date.now() - stats.startTime) / 1000),
-      algorithm: roundRobin.getInfo(),
+      algorithm: algorithm.getInfo(),
       servers: BACKEND_SERVERS.map(s => ({
         name: s.name,
         url: s.url,
@@ -190,7 +227,7 @@ const loadBalancer = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       message: ' ShopNow Load Balancer',
-      algorithm: 'Round Robin',
+      algorithm: ALGORITHM,
       port: LOAD_BALANCER_PORT,
       servers: BACKEND_SERVERS.map(s => ({
         name: s.name,
@@ -198,14 +235,29 @@ const loadBalancer = http.createServer((req, res) => {
       })),
       stats: {
         totalRequests: stats.totalRequests,
-        successRate: ((stats.successfulRequests / stats.totalRequests) * 100).toFixed(2) + '%'
+        successRate: stats.totalRequests > 0 
+          ? ((stats.successfulRequests / stats.totalRequests) * 100).toFixed(2) + '%'
+          : '0%'
       }
     }, null, 2));
     return;
   }
 
-  // Selecionar próximo servidor usando Round Robin
-  const targetServer = roundRobin.getNextServer();
+  // Rota especial: trocar algoritmo em tempo real
+  if (req.url === '/lb-switch-algorithm') {
+    const newAlgorithm = ALGORITHM === 'round-robin' ? 'least-connections' : 'round-robin';
+    
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      message: 'Para trocar o algoritmo, reinicie o load balancer com a variável ALGORITHM',
+      currentAlgorithm: ALGORITHM,
+      suggestedCommand: `ALGORITHM=${newAlgorithm} node src/load-balancer.js`
+    }, null, 2));
+    return;
+  }
+
+  // Selecionar próximo servidor usando o algoritmo configurado
+  const targetServer = algorithm.getNextServer();
 
   if (!targetServer) {
     stats.failedRequests++;
@@ -225,12 +277,12 @@ const loadBalancer = http.createServer((req, res) => {
 loadBalancer.listen(LOAD_BALANCER_PORT, () => {
   console.log(`
 ╔══════════════════════════════════════════════════╗
-║         ShopNow Load Balancer                 ║
+║          ShopNow Load Balancer                 ║
 ╠══════════════════════════════════════════════════╣
 ║  Port: ${LOAD_BALANCER_PORT}                                       ║
-║  Algorithm: Round Robin                          ║
+║  Algorithm: ${ALGORITHM.padEnd(35)}║
 ║  Backend Servers: ${BACKEND_SERVERS.length}                              ║
-║  Status: ONLINE                                ║
+║  Status: ONLINE                                 ║
 ╠══════════════════════════════════════════════════╣
 ║  Endpoints:                                      ║
 ║    • http://localhost:${LOAD_BALANCER_PORT}/                    ║

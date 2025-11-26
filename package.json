@@ -3,19 +3,25 @@
   "version": "1.0.0",
   "description": "Load Balancer para e-commerce ShopNow",
   "main": "src/load-balancer.js",
- "scripts": {
-    "start:server1": "node src/server.js 3001",
-    "start:server2": "node src/server.js 3002",
-    "start:server3": "node src/server.js 3003",
-    "start:cluster": "node src/cluster-manager.js",
-    "start:balancer": "node src/load-balancer.js",
-    "test:instances": "node tests/test-instances.js",
-    "test:balancer": "node tests/test-load-balancer.js",
-    "start:servers": "npm-run-all --parallel start:server1 start:server2 start:server3",
-    "start": "npm-run-all --parallel start:servers start:balancer",
-    "test:load": "bash tests/load-test.sh",
-    "simulate:failure": "node tests/simulate-failure.js"
-  },
+  "scripts": {
+  "start:server1": "node src/server.js 3001",
+  "start:server2": "node src/server.js 3002",
+  "start:server3": "node src/server.js 3003",
+  "start:cluster": "node src/cluster-manager.js",
+  "start:balancer": "node src/load-balancer.js",
+  "start:balancer:lc": "cross-env ALGORITHM=least-connections node src/load-balancer.js",
+  "start:balancer:rr": "cross-env ALGORITHM=round-robin node src/load-balancer.js",
+  "test:instances": "node tests/test-instances.js",
+  "test:balancer": "node tests/test-load-balancer.js",
+  "test:leastconn": "node tests/test-least-connections.js",
+  "test:load:node": "node tests/load-test.js",
+  "test:load:ab": "bash tests/load-test.sh",
+  "simulate:failure": "node tests/simulate-failure.js",
+  "start:servers": "npm-run-all --parallel start:server1 start:server2 start:server3",
+  "start": "npm-run-all --parallel start:servers start:balancer",
+  "simulate:failure:manual": "node tests/simulate-failure-manual.js"
+  
+},
   "keywords": [
     "load-balancer",
     "ecommerce",
@@ -28,6 +34,7 @@
     "express": "^4.18.2"
   },
   "devDependencies": {
-    "npm-run-all": "^4.1.5"
+    "npm-run-all": "^4.1.5",
+    "cross-env": "^7.0.3"
   }
 }
